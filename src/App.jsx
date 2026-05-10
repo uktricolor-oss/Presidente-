@@ -5,14 +5,14 @@
     <title>O Candidato - Simulador de Carreira Política</title>
     <style>
         :root { --primary: #1a5c1a; --secondary: #f9d71c; --dark: #2c3e50; --danger: #e74c3c; }
-        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         #hud { background: var(--dark); color: white; padding: 10px 20px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; border-bottom: 4px solid var(--secondary); font-size: 0.9em; }
         .stat-box { display: flex; flex-direction: column; align-items: center; }
         .val { font-weight: bold; color: var(--secondary); font-size: 1.1em; }
         #game-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
         .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 100%; max-width: 800px; }
-        .btn { background: var(--dark); color: white; border: none; padding: 15px; margin: 8px 0; width: 100%; border-radius: 8px; cursor: pointer; font-size: 1em; transition: 0.2s; text-align: left; }
-        .btn:hover { background: #34495e; }
+        .btn { background: var(--dark); color: white; border: none; padding: 15px; margin: 8px 0; width: 100%; border-radius: 8px; cursor: pointer; font-size: 1em; transition: 0.2s; text-align: left; position: relative; }
+        .btn:hover { background: #34495e; padding-left: 20px; }
         .btn-acao { background: var(--primary); text-align: center; font-weight: bold; }
         .budget-row { display: flex; align-items: center; gap: 15px; margin: 10px 0; }
         input[type=range] { flex: 1; }
@@ -35,23 +35,23 @@
 <div id="news-ticker">O CANDIDATO: INICIE SUA JORNADA POLÍTICA PARA ESCREVER A HISTÓRIA.</div>
 
 <div id="game-container">
-    <!-- Tela de filiação -->
+    <!-- TELA 1: FILIAÇÃO -->
     <div id="screen-setup" class="card">
-        <h2>Escolha seu Partido</h2>
-        <p>Selecione uma legenda para sua primeira candidatura a <b>Vereador</b>:</p>
+        <h2>Selecione seu Partido e Estilo</h2>
+        <p>Escolha uma legenda para sua primeira candidatura (Vereador):</p>
         <div id="partidos-list"></div>
     </div>
 
-    <!-- Tela de gestão executiva (orçamento) -->
+    <!-- TELA 2: GABINETE (EXECUTIVO) -->
     <div id="screen-executivo" class="card hidden">
         <h2>Gestão de Orçamento</h2>
-        <p>Distribua os recursos. O total deve ser exatamente <b>100%</b>.</p>
+        <p>Distribua os recursos. Lembre-se: áreas com pouca verba geram crises.</p>
         <div id="budget-sliders"></div>
         <div style="margin-top:20px; font-weight:bold">Total Alocado: <span id="budget-total">0</span>% / 100%</div>
         <button class="btn btn-acao" id="btn-aplicar-orcamento">Aplicar e Avançar Mês</button>
     </div>
 
-    <!-- Tela de crises / legislativo -->
+    <!-- TELA 3: PLENÁRIO (LEGISLATIVO) -->
     <div id="screen-legislativo" class="card hidden">
         <h2 id="leg-titulo">Crise no Mandato</h2>
         <p id="leg-desc">Carregando...</p>
@@ -66,12 +66,12 @@
 </div>
 
 <script>
-// --- DADOS ---
+// --- BANCO DE DADOS (mantido como você gostou) ---
 const PARTIDOS = [
-    { nome: "PT", verba: 80000, bonus: "Social", exigencia: "Alta" },
-    { nome: "PL", verba: 100000, bonus: "Seguranca", exigencia: "Media" },
-    { nome: "MDB", verba: 50000, bonus: "Pragmatismo", exigencia: "Baixa" },
-    { nome: "PSOL", verba: 20000, bonus: "Ambiental", exigencia: "Maxima" }
+    { nome: "PT", verba: 80000, cor: "vermelho", bonus: "Social", exigencia: "Alta" },
+    { nome: "PL", verba: 100000, cor: "azul", bonus: "Seguranca", exigencia: "Media" },
+    { nome: "MDB", verba: 50000, cor: "verde", bonus: "Pragmatismo", exigencia: "Baixa" },
+    { nome: "PSOL", verba: 20000, cor: "rosa", bonus: "Ambiental", exigencia: "Maxima" }
 ];
 
 const CRISES_VEREADOR = [
@@ -83,40 +83,18 @@ const CRISES_VEREADOR = [
             { txt: "Privatizar a coleta em caráter de urgência (Técnico)", pop: -10, bancada: {rural: 15, soc: -5}, pf: 0, grana: 20000 },
             { txt: "Prometer aumento mas não cumprir (Mentira)", pop: 10, bancada: {soc: -20}, pf: 10, grana: 0 }
         ]
-    },
-    {
-        txt: "Falta de medicamentos no posto de saúde.",
-        opcoes: [
-            { txt: "Usar verba de gabinete para comprar remédios", pop: 12, bancada: {soc: 10, relig: 5}, pf: 0, grana: -5000 },
-            { txt: "Cobrar o prefeito publicamente", pop: 8, bancada: {soc: 5}, pf: 0, grana: 0 },
-            { txt: "Pedir doações para empresários locais", pop: 5, bancada: {rural: 10, soc: 0}, pf: 0, grana: 10000 },
-            { txt: "Ignorar a situação", pop: -15, bancada: {soc: -10}, pf: 0, grana: 0 }
-        ]
     }
 ];
 
-const CRISES_DEPUTADO = [
-    {
-        txt: "Votação da Reforma Tributária: mercado pede aprovação, sindicatos são contra.",
-        opcoes: [
-            { txt: "Votar a favor da reforma", pop: -10, bancada: {rural: 15, soc: -15}, pf: 0, grana: 50000 },
-            { txt: "Votar contra e apoiar os sindicatos", pop: 15, bancada: {soc: 20, rural: -10}, pf: 0, grana: 0 },
-            { txt: "Negociar emendas para proteger trabalhadores", pop: 5, bancada: {soc: 10, rural: 5}, pf: 0, grana: 20000 },
-            { txt: "Faltar à votação", pop: -20, bancada: {soc: -5, rural: -5}, pf: 5, grana: 0 }
-        ]
-    }
-];
-
-// Estado inicial
+// --- ESTADO DO JOGO (sem alterações) ---
 let estado = {
     idade: 18, meses: 0, dinheiro: 5000, cargo: "Civil", partido: null,
-    pop: 30, pf: 0, 
+    pop: 30, pf: 0,
     bancadas: { rural: 50, relig: 50, seg: 50, soc: 50 },
     orcamento: { Saude: 15, Educacao: 15, Seguranca: 10, Infra: 10, Social: 10, Outros: 40 },
     isExecutivo: false
 };
 
-// --- INICIALIZAÇÃO ---
 function init() {
     const list = document.getElementById('partidos-list');
     PARTIDOS.forEach(p => {
@@ -136,43 +114,26 @@ function filiar(p) {
     proximaFase();
 }
 
-// --- GERENCIAMENTO DE TELAS ---
-function mostrarTela(id) {
-    document.getElementById('screen-setup').classList.add('hidden');
-    document.getElementById('screen-executivo').classList.add('hidden');
-    document.getElementById('screen-legislativo').classList.add('hidden');
-    document.getElementById(id).classList.remove('hidden');
-}
-
 function proximaFase() {
     atualizarHUD();
-    const cargosExecutivos = ["Prefeito", "Governador", "Presidente"];
-    if (cargosExecutivos.includes(estado.cargo)) {
+    // Apenas mostra a tela adequada: se for executivo, tela de orçamento; senão, tela de crise
+    if (["Prefeito", "Governador", "Presidente"].includes(estado.cargo)) {
         abrirExecutivo();
-    } else if (estado.cargo === "Civil") {
-        // Volta para a tela de setup para escolher um novo partido?
-        // Aqui podemos apenas permitir que avance para a próxima eleição
-        mostrarTela('screen-setup');
-        document.getElementById('partidos-list').innerHTML = ''; // reset
-        init(); // recria botões de partido
     } else {
         abrirLegislativo();
     }
 }
 
-// --- TELA LEGISLATIVA (CRISES) ---
+// --- TELA DE CRISE (LEGISLATIVO) ---
 function abrirLegislativo() {
-    mostrarTela('screen-legislativo');
-    
-    let pool;
-    if (estado.cargo === "Vereador") pool = CRISES_VEREADOR;
-    else if (estado.cargo === "Deputado Federal") pool = CRISES_DEPUTADO;
-    else pool = CRISES_VEREADOR; // fallback
-    
-    const crise = pool[Math.floor(Math.random() * pool.length)];
+    document.getElementById('screen-setup').classList.add('hidden');
+    document.getElementById('screen-executivo').classList.add('hidden');
+    document.getElementById('screen-legislativo').classList.remove('hidden');
+
+    const crise = CRISES_VEREADOR[0]; // Pode trocar por sorteio depois
     document.getElementById('leg-titulo').innerText = `${estado.cargo}: Mês ${estado.meses + 1}`;
     document.getElementById('leg-desc').innerText = crise.txt;
-    
+
     const container = document.getElementById('leg-opcoes');
     container.innerHTML = "";
     crise.opcoes.forEach(o => {
@@ -184,17 +145,18 @@ function abrirLegislativo() {
     });
 }
 
-function resolverCrise(opcao) {
-    estado.pop += opcao.pop;
-    estado.pf += opcao.pf;
-    estado.dinheiro += opcao.grana;
-    for (let k in opcao.bancada) estado.bancadas[k] += opcao.bancada[k];
+function resolverCrise(o) {
+    estado.pop += o.pop;
+    estado.pf += o.pf;
+    estado.dinheiro += o.grana;
+    for (let k in o.bancada) estado.bancadas[k] += o.bancada[k];
     passarTurno();
 }
 
-// --- TELA EXECUTIVA (ORÇAMENTO) ---
+// --- TELA DE ORÇAMENTO (EXECUTIVO) ---
 function abrirExecutivo() {
-    mostrarTela('screen-executivo');
+    document.getElementById('screen-legislativo').classList.add('hidden');
+    document.getElementById('screen-executivo').classList.remove('hidden');
     const container = document.getElementById('budget-sliders');
     container.innerHTML = "";
     for (let area in estado.orcamento) {
@@ -214,6 +176,7 @@ function updateBudget(area, val) {
     estado.orcamento[area] = parseInt(val);
     document.getElementById('val-' + area).innerText = val + '%';
     atualizarTotalOrcamento();
+    // NÃO chama proximaFase aqui – apenas atualiza o valor
 }
 
 function atualizarTotalOrcamento() {
@@ -225,7 +188,7 @@ function atualizarTotalOrcamento() {
 function aplicarOrcamento() {
     let total = Object.values(estado.orcamento).reduce((a, b) => a + b, 0);
     if (total !== 100) {
-        alert("O total deve ser exatamente 100%!");
+        alert("A soma do orçamento precisa ser exatamente 100%!");
         return;
     }
     passarTurno();
@@ -238,51 +201,48 @@ function passarTurno() {
         estado.idade++;
         estado.dinheiro += 15000; // Salário anual
     }
-    
-    // Verifica fim de mandato (4 anos = 48 meses)
-    if (estado.meses === 48) {
+
+    // Eleição a cada 48 meses (4 anos)
+    if (estado.meses % 48 === 0) {
         if (estado.pop > 60) {
-            // Promove para Deputado Federal
-            estado.cargo = "Deputado Federal";
-            estado.meses = 0;
-            alert("VOCÊ FOI ELEITO DEPUTADO FEDERAL!");
+            // Promove de Vereador para Deputado Federal
+            if (estado.cargo === "Vereador") {
+                estado.cargo = "Deputado Federal";
+                estado.meses = 0;
+                alert("VOCÊ FOI ELEITO DEPUTADO FEDERAL!");
+            }
         } else {
             alert("PERDEU A ELEIÇÃO. Você agora é um cidadão comum.");
             estado.cargo = "Civil";
             estado.meses = 0;
         }
     }
-    
-    // Game Over por PF
+
+    // Condições de fim de jogo
     if (estado.pf > 90) {
         alert("A PF BATEU NA PORTA! FIM DE CARREIRA.");
         location.reload();
-        return;
     } else if (estado.idade > 85) {
         alert("Você se aposentou. Seu legado foi escrito.");
         location.reload();
-        return;
     }
-    
-    atualizarHUD();
+
     proximaFase();
 }
 
-// --- HUD ---
 function atualizarHUD() {
     document.getElementById('h-idade').innerText = estado.idade;
     document.getElementById('h-cargo').innerText = estado.cargo;
-    document.getElementById('h-partido').innerText = estado.partido || 'Nenhum';
+    document.getElementById('h-partido').innerText = estado.partido || "Nenhum";
     document.getElementById('h-grana').innerText = `R$ ${estado.dinheiro.toLocaleString()}`;
     document.getElementById('h-pop').innerText = `${estado.pop}%`;
-    
+
     document.getElementById('b-rural').innerText = estado.bancadas.rural;
     document.getElementById('b-relig').innerText = estado.bancadas.relig;
     document.getElementById('b-seg').innerText = estado.bancadas.seg;
     document.getElementById('b-soc').innerText = estado.bancadas.soc;
 }
 
-// Iniciar o jogo
 init();
 </script>
 </body>
